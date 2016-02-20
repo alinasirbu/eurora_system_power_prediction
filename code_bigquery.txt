@@ -1,0 +1,51 @@
+
+###estimate idle power for each component:
+SELECT floor(power) as power, count(*) as count FROM [eurora2.cpu] group by power order by power desc
+SELECT floor(power) as power, count(*) as count FROM [eurora2.gpu] group by power order by power desc
+SELECT floor(power) as power, count(*) as count FROM [eurora2.mic] group by power order by power desc
+###select value with largest frequency, or an average between the top 2 
+core_power =19.5/8=2.4 (44/16 = 2.75 including dram)
+gpu_power=12.5
+mic_power=100
+
+
+
+
+#job list for each valid time point
+
+bq --project_id diecicolli-hrd  query --replace --allow_large_results --destination_table=eurora2.system_time_jobs "SELECT t1.time as time, group_concat( concat(left(t2.user,8),t2.job_id),';') as jobs FROM    eurora2.jobs_corrected t2 cross join eurora2.valid_times t1 where t1.time between t2.start and t2.finish group by time order by time"
+
+
+#user list per month
+bq --project_id diecicolli-hrd  query --replace --allow_large_results --destination_table=eurora2.users_oct "SELECT left(user,8) as user FROM eurora2.jobs_corrected where month(start)=10 or month(finish)=10 group by user "
+
+#save as all_users_10.csv
+
+#find average power per used component global
+SELECT avg(cores_low_power_used/cores_low_used), avg(cores_med_power_used/cores_med_used), avg(cores_high_power_used/cores_high_used) ,
+avg(gpus_power_used/gpus_used), avg(mics_power_used/mics_used) 
+FROM [eurora2.system_power_data_nodes_down_mics_idle] where month(time)<10 and year(time)=2014
+
+7.851865008039907	9.40069101845127	18.603138332333494	74.32502744307172	100.31808663990711	 
+
+#find average power per used component per user
+users=$(<all_users_10.csv)
+for user in $users 
+do 
+
+echo $user
+bq --project_id diecicolli-hrd  query --replace --allow_large_results --destination_table=eurora2.avgs_10_$user "SELECT avg(cpu_low_power/cores_low), avg(cpu_med_power/cores_med), avg(cpu_high_power/cores_high),avg(gpu_power/ngpus), avg(mic_power/nmics) FROM eurora2.${user}_jobs where month(time)<10 and year(time)=2014" 	 
+
+bq --project_id diecicolli-hrd extract eurora2.avgs_10_${user} gs://eurora_low_level/avgs_10_${user}.csv
+gsutil cp gs://eurora_low_level/avgs_10_${user}.csv ./avgs_10_${user}.csv
+
+
+done
+
+
+
+######number of nodes that are down
+
+SELECT time, count(*) FROM [eurora2.time_nodes_used_components_total_power_nodes_down] where cores_used+gpus_used+mics_used+cpu_total_power+gpu_total_power+mic_total_power=0 group by time order by time
+
+
