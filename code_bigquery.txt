@@ -13,11 +13,11 @@ mic_power=100
 
 #job list for each valid time point
 
-bq --project_id diecicolli-hrd  query --replace --allow_large_results --destination_table=eurora2.system_time_jobs "SELECT t1.time as time, group_concat( concat(left(t2.user,8),t2.job_id),';') as jobs FROM    eurora2.jobs_corrected t2 cross join eurora2.valid_times t1 where t1.time between t2.start and t2.finish group by time order by time"
+bq --project_id [project_id]  query --replace --allow_large_results --destination_table=eurora2.system_time_jobs "SELECT t1.time as time, group_concat( concat(left(t2.user,8),t2.job_id),';') as jobs FROM    eurora2.jobs_corrected t2 cross join eurora2.valid_times t1 where t1.time between t2.start and t2.finish group by time order by time"
 
 
 #user list per month
-bq --project_id diecicolli-hrd  query --replace --allow_large_results --destination_table=eurora2.users_oct "SELECT left(user,8) as user FROM eurora2.jobs_corrected where month(start)=10 or month(finish)=10 group by user "
+bq --project_id [project_id]  query --replace --allow_large_results --destination_table=eurora2.users_oct "SELECT left(user,8) as user FROM eurora2.jobs_corrected where month(start)=10 or month(finish)=10 group by user "
 
 #save as all_users_10.csv
 
@@ -34,10 +34,10 @@ for user in $users
 do 
 
 echo $user
-bq --project_id diecicolli-hrd  query --replace --allow_large_results --destination_table=eurora2.avgs_10_$user "SELECT avg(cpu_low_power/cores_low), avg(cpu_med_power/cores_med), avg(cpu_high_power/cores_high),avg(gpu_power/ngpus), avg(mic_power/nmics) FROM eurora2.${user}_jobs where month(time)<10 and year(time)=2014" 	 
+bq --project_id [project_id]  query --replace --allow_large_results --destination_table=eurora2.avgs_10_$user "SELECT avg(cpu_low_power/cores_low), avg(cpu_med_power/cores_med), avg(cpu_high_power/cores_high),avg(gpu_power/ngpus), avg(mic_power/nmics) FROM eurora2.${user}_jobs where month(time)<10 and year(time)=2014" 	 
 
-bq --project_id diecicolli-hrd extract eurora2.avgs_10_${user} gs://eurora_low_level/avgs_10_${user}.csv
-gsutil cp gs://eurora_low_level/avgs_10_${user}.csv ./avgs_10_${user}.csv
+bq --project_id [project_id] extract eurora2.avgs_10_${user} gs://[bucket]/avgs_10_${user}.csv
+gsutil cp gs://[bucket]/avgs_10_${user}.csv ./avgs_10_${user}.csv
 
 
 done
